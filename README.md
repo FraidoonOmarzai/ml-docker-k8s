@@ -2,10 +2,17 @@
 
 A complete machine learning project demonstrating containerization with Docker and orchestration with Kubernetes.
 
+
+## Steps:
+1. create env, define template and install required packages
 ```bash
 conda create -p mlenv python==3.11 -y
 conda activate C:\Users\44787\Desktop\ml-docker-k8s\mlenv
+python template.py
+pip install -r requirements.txt
 ```
+2. run `train_model.py`
+3. 
 
 ## 🎯 Project Overview
 
