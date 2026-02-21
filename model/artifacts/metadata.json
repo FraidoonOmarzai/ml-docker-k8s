@@ -1,0 +1,22 @@
+{
+  "model_type": "RandomForestClassifier",
+  "framework": "scikit-learn",
+  "feature_names": [
+    "sepal length (cm)",
+    "sepal width (cm)",
+    "petal length (cm)",
+    "petal width (cm)"
+  ],
+  "class_names": [
+    "setosa",
+    "versicolor",
+    "virginica"
+  ],
+  "num_features": 4,
+  "num_classes": 3,
+  "test_accuracy": 0.9333,
+  "pipeline_steps": [
+    "StandardScaler",
+    "RandomForestClassifier"
+  ]
+}
