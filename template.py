@@ -22,7 +22,7 @@ files = [
     os.path.join("model", "evaluate.py"),
     os.path.join("app", "main.py"),
     os.path.join("app", "predictor.py"),
-    os.path.join("app", "schema.py"),
+    os.path.join("app", "schemas.py"),
     "Dockerfile",
     "requirements-train.txt",
     "requirements-serve.txt"
