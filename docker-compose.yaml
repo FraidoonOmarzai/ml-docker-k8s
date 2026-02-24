@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  
+  
+  dock8s-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dock8s:latest
+    container_name: dock8s
+    ports:
+      - "8080:8080"
+    environment:
+      - ARTIFACTS_DIR=/app/model/artifacts
+      - PYTHONUNBUFFERED=1
+    # Mount artifacts at runtime so you don't need to rebuild when retraining
+    volumes:
+      - ./model/artifacts:/app/model/artifacts:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Optional: run tests against the running API
+  test-runner:
+    image: python:3.11-slim
+    container_name: dock8s-test-runner
+    depends_on:
+      dock8s-api:
+        condition: service_healthy
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: python test_local.py --base-url http://dock8s-api:8080
+    profiles:
+      - test    # only runs when: docker compose --profile test up

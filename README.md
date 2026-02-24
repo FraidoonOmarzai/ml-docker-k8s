@@ -120,3 +120,71 @@ curl http://localhost:8080/health
 - FileNotFoundError: model.pkl not found — artifacts weren't generated. Run python model/train.py first.
 - Port already in use — something else is on 8080. Use -p 9090:8080 to map to a different local port.
 - Docker build fails on scikit-learn — make sure Docker Desktop is running and has enough memory (at least 2GB).
+
+## Phases
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Train & Save ML Model | ✅ |
+| 2 | Containerize with Docker + FastAPI | ✅ |
+| 3 | Local Docker Testing | ✅ |
+| 4 | Kubernetes Manifests | 🔜 |
+| 5 | Deploy & Scale on Kubernetes | 🔜 |
+| 6 | Monitoring & Observability | 🔜 |
+
+```
+Phase 1 — Train the Model
+bashpip install -r requirements-train.txt
+python model/train.py
+python model/evaluate.py
+Expected output:
+✅ Training complete!
+   Model     → model/artifacts/model.pkl
+   Metadata  → model/artifacts/metadata.json
+   Test Accuracy: 0.9667
+
+Phase 2 — FastAPI Server + Docker
+Run locally (without Docker)
+bashpip install -r requirements-serve.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+Open http://localhost:8080/docs for the Swagger UI.
+Build and run with Docker
+bashdocker build -t iris-ml-api:latest .
+docker run -d --name iris-ml-local -p 8080:8080 iris-ml-api:latest
+docker logs iris-ml-local
+API Endpoints
+MethodPathDescriptionGET/healthLiveness probe — returns model infoGET/readyReadiness probe — 200 when readyPOST/predictSingle prediction (4 features)POST/predict/batchBatch predictions (up to 100)GET/docsSwagger UI
+Example requests
+bashcurl http://localhost:8080/health
+
+curl -X POST http://localhost:8080/predict \
+     -H "Content-Type: application/json" \
+     -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+
+curl -X POST http://localhost:8080/predict/batch \
+     -H "Content-Type: application/json" \
+     -d '{"features": [[5.1,3.5,1.4,0.2],[6.7,3.0,5.2,2.3]]}'
+Common errors
+ErrorFixModuleNotFoundError: No module named 'app'Run uvicorn from project rootFileNotFoundError: model.pkl not foundRun python model/train.py firstPort already in useUse -p 9090:8080 to remap the portDocker build failsEnsure Docker Desktop has at least 2GB RAM
+```
+## Phase 3 — Local Docker Testing
+- One-shot script (recommended)
+```bash
+chmod +x run_local.sh && ./run_local.sh
+```
+- Manual
+```bash
+python test_local.py
+python test_local.py --base-url http://localhost:9090
+```
+- Docker Compose
+```bash
+docker compose up --build
+docker compose --profile test up
+```
+- Useful Docker commands
+```bash
+docker logs -f iris-ml-local
+docker exec -it iris-ml-local bash
+docker stats iris-ml-local
+docker stop iris-ml-local && docker rm iris-ml-local
+```

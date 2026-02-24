@@ -41,8 +41,8 @@ async def lifespan(app: FastAPI):
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Iris ML Inference API",
-    description="Production-ready ML inference server — Iris classifier",
+    title="Docker + k8s Inference API",
+    description="Docker and k8s deployment example with FastAPI, using an Iris ML model.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -63,7 +63,7 @@ async def add_process_time(request: Request, call_next):
 
 @app.get("/", include_in_schema=False)
 def root():
-    return {"message": "Iris ML API is running. Visit /docs for the Swagger UI."}
+    return {"message": "API is running. Visit /docs for the Swagger UI."}
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Operations"])
