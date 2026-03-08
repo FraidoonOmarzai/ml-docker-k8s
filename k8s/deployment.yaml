@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dock8s-api
+  namespace: dock8s-namespace
+  labels:
+    app: dock8s-api
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: dock8s-api
+
+  template:
+    metadata:
+      labels:
+        app: dock8s-api
+
+    spec:
+
+      containers:
+        - name: dock8s-api
+          image: fraidoonjan/dock8s
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8080
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dock8s-api-service
+  namespace: dock8s-namespace
+spec:
+  type: LoadBalancer
+  # type: NodePort
+  selector:
+    app: dock8s-api
+  ports:
+  - port: 80
+    targetPort: 8080

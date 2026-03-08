@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: dock8s:latest
+    image: fraidoonjan/dock8s:latest
     container_name: dock8s
     ports:
       - "8080:8080"

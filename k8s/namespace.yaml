@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# namespace.yaml
+# Creates an isolated namespace for all ML system resources.
+# Best practice: never deploy to `default` in production.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dock8s-namespace
+  labels:
+    name: dock8s-namespace
+    app.kubernetes.io/name: dock8s-namespace
