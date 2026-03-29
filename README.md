@@ -1,6 +1,9 @@
 <h1 align=center>ML System: Docker + Kubernetes — End-to-End Project</h1>
 
-## Phases
+
+# Phase 1
+- We'll train a simple but realistic Iris flower classifier (multi-class) using scikit-learn. The goal is clean, production-ready code with proper artifact saving.
+### Phases
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Train & Save ML Model | ✅ |
@@ -10,16 +13,53 @@
 | 5 | Deploy & Scale on Kubernetes | 🔜 |
 | 6 | Monitoring & Observability | 🔜 |
 
+
+## 🛠️ Installation & Setup
+#### Prerequisites
+- Python 3.10+
+- pip
+- Git
+1. Create new git repo and clone the Repository
+```bash
+git clone https://github.com/FraidoonOmarzai/---
+cd ---
+```
+2. Create Virtual Environment
+```bash
+# Create virtual environment
+conda create -n dock8s python=3.12 -y
+
+# Activate virtual environment
+conda activate dock8s
+```
+3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+4. Create Directory Structure (Define template of the project)
+```bash
+touch template.py #linux/Mac
+python3 template.py
+```
+5. Define Logger and Custom Exception
+
 ## Phase 1 — Run Training
 
+#### Project Structure for Phase 1
+```
+ml-k8s-project/
+├── model/
+│   ├── train.py
+│   ├── evaluate.py
+│   └── artifacts/          ← saved model + scaler land here
+├── requirements-train.txt
+└── README.md
+```
 ```bash
-# Install dependencies
-pip install -r requirements-train.txt
-
 # Train the model (saves artifacts to model/artifacts/)
 python model/train.py
 
-# Sanity check
+# evaluation 
 python model/evaluate.py
 ```
 
@@ -28,11 +68,26 @@ Expected output:
 ✅ Training complete!
    Model    → model/artifacts/model.pkl
    Metadata → model/artifacts/metadata.json
-   Test Accuracy: 0.9667
+   Test Accuracy: 0.933
 ```
 
-## Phase 2 — What To Do (Step by Step)
-## Phases
+#### ✅ Phase 1 Complete — Here's what was built:
+model/train.py does the following in clean, production-style code:
+
+- Loads the Iris dataset
+- Builds a Pipeline (StandardScaler → RandomForestClassifier) — the scaler is bundled inside the pipeline so you never have a mismatch at inference time
+- Runs 5-fold cross validation and logs scores
+- Saves model.pkl (the full pipeline) and metadata.json (feature names, class names, accuracy, etc.)
+
+model/evaluate.py loads the saved artifacts and runs 3 sample predictions to confirm the model is healthy before containerizing.
+
+---
+---
+---
+
+# Phase 2 — What To Do (Step by Step)
+- We'll build a production-ready REST API around the model, then Dockerize it properly.
+### Phases
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Train & Save ML Model | ✅ |
@@ -42,6 +97,25 @@ Expected output:
 | 5 | Deploy & Scale on Kubernetes | 🔜 |
 | 6 | Monitoring & Observability | 🔜 |
 
+#### Project Structure after Phase 2
+```
+ml-k8s-project/
+├── model/
+│   ├── train.py
+│   ├── evaluate.py
+│   └── artifacts/
+│       ├── model.pkl
+│       └── metadata.json
+├── app/                        ← NEW
+│   ├── main.py                 ← FastAPI app
+│   ├── predictor.py            ← model loading + inference logic
+│   └── schemas.py              ← Pydantic request/response models
+├── Dockerfile                  ← NEW
+├── .dockerignore               ← NEW
+├── requirements-train.txt
+├── requirements-serve.txt      ← NEW
+└── README.md
+```
 ### What Phase 2 is about
 You're wrapping the trained model in a FastAPI web server and packaging it into a Docker container. Here's the full sequence:
 
@@ -94,34 +168,51 @@ curl -X POST http://localhost:8080/predict \
 #### Step 5 — Build the Docker image
 ```bash
 # Stop the uvicorn server first (Ctrl+C), then:
-docker build -t iris-ml-api:latest .
+docker build -t fraidoonjan/dock8s:latest .
 
 # Verify image was created
-docker image ls iris-ml-api
+docker image ls fraidoonjan/dock8s
 ```
 #### Step 6 — Run the container
 ```bash
 docker run -d \
-  --name iris-ml-local \
+  --name dock8s-api \
   -p 8080:8080 \
-  iris-ml-api:latest
+  fraidoonjan/dock8s:latest
 
 # Check it started cleanly
-docker logs iris-ml-local
+docker logs dock8s-api
 ```
 #### Step 7 — Verify the container works
 ```bash
 curl http://localhost:8080/health
 # Should return {"status": "healthy", ...}
 ```
+#### ✅ Phase 2 Complete — Here's what was built:
+- `app/schemas.py` — Pydantic v2 models with validation for single + batch requests, clean error messages on bad input.
+- `app/predictor.py` — Singleton `ModelPredictor` class that loads the pipeline once at startup and serves both single and batch inference. Path is configurable via `ARTIFACTS_DIR` env var (important for Kubernetes).
 
-#### Common errors and fixes
-- ModuleNotFoundError: No module named 'app' — run uvicorn from the project root, not from inside the app/ folder.
-- FileNotFoundError: model.pkl not found — artifacts weren't generated. Run python model/train.py first.
-- Port already in use — something else is on 8080. Use -p 9090:8080 to map to a different local port.
-- Docker build fails on scikit-learn — make sure Docker Desktop is running and has enough memory (at least 2GB).
+- `app/main.py` — FastAPI app with:
 
-## Phases
+     - `/health` — liveness probe (returns model metadata)
+     - `/ready` — readiness probe (returns 200 only when model is loaded)
+     - `/predict` — single inference
+     - `/predict/batch` — batch inference (up to 100 samples)
+     - Request timing middleware logging every request's latency
+
+- Dockerfile — Multi-stage build:
+
+     - Stage 1 (builder): installs all deps into a venv
+     - Stage 2 (runtime): copies only the venv + app code, no compilers, runs as a non-root user — production best practice
+
+
+---
+---
+---
+# Phases 3 — Local Docker Testing
+- We'll build the image, run the container, and thoroughly test every endpoint. This phase is all about commands you run in your terminal — plus a test script to automate it all.
+
+### Phases
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Train & Save ML Model | ✅ |
@@ -131,67 +222,71 @@ curl http://localhost:8080/health
 | 5 | Deploy & Scale on Kubernetes | 🔜 |
 | 6 | Monitoring & Observability | 🔜 |
 
-```
-Phase 1 — Train the Model
-bashpip install -r requirements-train.txt
-python model/train.py
-python model/evaluate.py
-Expected output:
-✅ Training complete!
-   Model     → model/artifacts/model.pkl
-   Metadata  → model/artifacts/metadata.json
-   Test Accuracy: 0.9667
 
-Phase 2 — FastAPI Server + Docker
-Run locally (without Docker)
-bashpip install -r requirements-serve.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
-Open http://localhost:8080/docs for the Swagger UI.
-Build and run with Docker
-bashdocker build -t iris-ml-api:latest .
-docker run -d --name iris-ml-local -p 8080:8080 iris-ml-api:latest
-docker logs iris-ml-local
-API Endpoints
-MethodPathDescriptionGET/healthLiveness probe — returns model infoGET/readyReadiness probe — 200 when readyPOST/predictSingle prediction (4 features)POST/predict/batchBatch predictions (up to 100)GET/docsSwagger UI
-Example requests
-bashcurl http://localhost:8080/health
-
-curl -X POST http://localhost:8080/predict \
-     -H "Content-Type: application/json" \
-     -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
-
-curl -X POST http://localhost:8080/predict/batch \
-     -H "Content-Type: application/json" \
-     -d '{"features": [[5.1,3.5,1.4,0.2],[6.7,3.0,5.2,2.3]]}'
-Common errors
-ErrorFixModuleNotFoundError: No module named 'app'Run uvicorn from project rootFileNotFoundError: model.pkl not foundRun python model/train.py firstPort already in useUse -p 9090:8080 to remap the portDocker build failsEnsure Docker Desktop has at least 2GB RAM
-```
-## Phase 3 — Local Docker Testing
-- One-shot script (recommended)
+#### Option A — One-shot script (recommended)
 ```bash
-chmod +x run_local.sh && ./run_local.sh
+## run it using git bash terminal if using windows inside VS
+chmod +x run_local.sh && ./run_local.sh ###=>an error
 ```
-- Manual
+#### Option B — Manual
 ```bash
 python test_local.py
 python test_local.py --base-url http://localhost:9090
 ```
-- Docker Compose
+```bash
+### From phase 1 Step-by-Step Manual
+# 1. Train and save artifacts
+pip install -r requirements-train.txt
+python model/train.py
+
+# 2. Build the image
+docker build -t fraidoonjan/dock8s:latest .
+
+# 3. Run the container
+docker run -d --name dock8s-api -p 8080:8080 fraidoonjan/dock8s:latest
+
+# 4. Test it manually with curl
+curl http://localhost:8080/health
+curl -X POST http://localhost:8080/predict \
+     -H "Content-Type: application/json" \
+     -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+
+# 5. Run the full test suite
+python test_local.py
+
+# 6. Check logs
+docker logs -f dock8s-api
+```
+#### Option C — Docker Compose
 ```bash
 docker compose up --build
 docker compose --profile test up
 ```
 - Useful Docker commands
 ```bash
-docker logs -f iris-ml-local
-docker exec -it iris-ml-local bash
-docker stats iris-ml-local
-docker stop iris-ml-local && docker rm iris-ml-local
+docker logs -f dock8s-api
+docker exec -it dock8s-api bash
+docker stats dock8s-api
+docker stop dock8s-api && docker rm dock8s-api
+```
+---
+---
+---
+
+# Phase 4
+We'll write every K8s resource needed for a production-grade deployment. Here's the full structure we're building:
+```
+ml-k8s-project/
+└── k8s/
+    ├── namespace.yaml          ← isolated environment
+    ├── configmap.yaml          ← app config & env vars
+    ├── deployment.yaml         ← pods, replicas, probes, resources
+    ├── service.yaml            ← internal + external networking
+    ├── hpa.yaml                ← autoscaler (scale on CPU)
+    └── ingress.yaml            ← optional HTTP routing
 ```
 
-
-
-### Running Phase 4 Manually — Step by Step
+#### Running Phase 4 Manually — Step by Step
 Everything the script does, broken down into individual kubectl commands you run one at a time.
 
 Prerequisites

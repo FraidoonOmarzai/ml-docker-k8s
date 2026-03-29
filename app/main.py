@@ -25,6 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # ── Lifespan: load model on startup ──────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,11 +56,14 @@ async def add_process_time(request: Request, call_next):
     response = await call_next(request)
     duration_ms = round((time.time() - start) * 1000, 2)
     response.headers["X-Process-Time-Ms"] = str(duration_ms)
-    logger.info(f"{request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)")
+    logger.info(
+        f"{request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)"
+    )
     return response
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @app.get("/", include_in_schema=False)
 def root():

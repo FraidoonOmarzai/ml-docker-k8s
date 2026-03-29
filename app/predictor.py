@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Resolve artifact paths relative to this file or from env override
 ARTIFACTS_DIR = os.getenv(
-    "ARTIFACTS_DIR",
-    os.path.join(os.path.dirname(__file__), "..", "model", "artifacts")
+    "ARTIFACTS_DIR", os.path.join(os.path.dirname(__file__), "..", "model", "artifacts")
 )
 
 
@@ -42,7 +41,7 @@ class ModelPredictor:
     def load(self) -> None:
         """Load model pipeline and metadata from disk."""
         model_path = os.path.join(ARTIFACTS_DIR, "model.pkl")
-        meta_path  = os.path.join(ARTIFACTS_DIR, "metadata.json")
+        meta_path = os.path.join(ARTIFACTS_DIR, "metadata.json")
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(
@@ -80,15 +79,14 @@ class ModelPredictor:
             raise RuntimeError("Model is not loaded. Call load() first.")
 
         arr = np.array(features, dtype=np.float64).reshape(1, -1)
-        pred_idx  = int(self.pipeline.predict(arr)[0])
+        pred_idx = int(self.pipeline.predict(arr)[0])
         pred_prob = self.pipeline.predict_proba(arr)[0].tolist()
 
         return {
             "predicted_class": self.class_names[pred_idx],
             "predicted_index": pred_idx,
             "probabilities": {
-                cls: round(prob, 6)
-                for cls, prob in zip(self.class_names, pred_prob)
+                cls: round(prob, 6) for cls, prob in zip(self.class_names, pred_prob)
             },
             "model_version": self.model_version,
         }
@@ -99,20 +97,22 @@ class ModelPredictor:
             raise RuntimeError("Model is not loaded. Call load() first.")
 
         arr = np.array(features_list, dtype=np.float64)
-        pred_idxs  = self.pipeline.predict(arr).tolist()
+        pred_idxs = self.pipeline.predict(arr).tolist()
         pred_probs = self.pipeline.predict_proba(arr).tolist()
 
         results = []
         for idx, probs in zip(pred_idxs, pred_probs):
-            results.append({
-                "predicted_class": self.class_names[idx],
-                "predicted_index": int(idx),
-                "probabilities": {
-                    cls: round(prob, 6)
-                    for cls, prob in zip(self.class_names, probs)
-                },
-                "model_version": self.model_version,
-            })
+            results.append(
+                {
+                    "predicted_class": self.class_names[idx],
+                    "predicted_index": int(idx),
+                    "probabilities": {
+                        cls: round(prob, 6)
+                        for cls, prob in zip(self.class_names, probs)
+                    },
+                    "model_version": self.model_version,
+                }
+            )
         return results
 
 

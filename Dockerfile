@@ -59,8 +59,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 
 # Start server with Uvicorn — 2 workers, production settings
 CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8080", \
-     "--workers", "2", \
-     "--log-level", "info", \
-     "--access-log"]
+    "--host", "0.0.0.0", \
+    "--port", "8080", \
+    "--workers", "2", \
+    "--log-level", "info", \
+    "--access-log"]

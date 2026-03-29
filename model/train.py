@@ -14,11 +14,14 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, confusion_matrix
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "artifacts")
 os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+
 
 # ── 1. Load Data ──────────────────────────────────────────────────────────────
 def load_data():
@@ -26,21 +29,25 @@ def load_data():
     iris = load_iris()
     X, y = iris.data, iris.target
     feature_names = list(iris.feature_names)
-    class_names   = list(iris.target_names)
+    class_names = list(iris.target_names)
     logger.info(f"Dataset shape: {X.shape} | Classes: {class_names}")
     return X, y, feature_names, class_names
 
+
 # ── 2. Build Pipeline ─────────────────────────────────────────────────────────
 def build_pipeline():
-    return Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf",    RandomForestClassifier(
-            n_estimators=100,
-            max_depth=5,
-            random_state=42,
-            n_jobs=-1
-        ))
-    ])
+    return Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            (
+                "clf",
+                RandomForestClassifier(
+                    n_estimators=100, max_depth=5, random_state=42, n_jobs=-1
+                ),
+            ),
+        ]
+    )
+
 
 # ── 3. Train ──────────────────────────────────────────────────────────────────
 def train(X_train, y_train, pipeline):
@@ -50,13 +57,17 @@ def train(X_train, y_train, pipeline):
     logger.info(f"CV Accuracy: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
     return pipeline
 
+
 # ── 4. Evaluate ───────────────────────────────────────────────────────────────
 def evaluate(pipeline, X_test, y_test, class_names):
     y_pred = pipeline.predict(X_test)
-    report = classification_report(y_test, y_pred, target_names=class_names, output_dict=True)
+    report = classification_report(
+        y_test, y_pred, target_names=class_names, output_dict=True
+    )
     logger.info("\n" + classification_report(y_test, y_pred, target_names=class_names))
     logger.info(f"Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}")
     return report
+
 
 # ── 5. Save Artifacts ─────────────────────────────────────────────────────────
 def save_artifacts(pipeline, feature_names, class_names, metrics):
@@ -75,7 +86,7 @@ def save_artifacts(pipeline, feature_names, class_names, metrics):
         "num_features": len(feature_names),
         "num_classes": len(class_names),
         "test_accuracy": round(metrics["accuracy"], 4),
-        "pipeline_steps": ["StandardScaler", "RandomForestClassifier"]
+        "pipeline_steps": ["StandardScaler", "RandomForestClassifier"],
     }
     meta_path = os.path.join(ARTIFACTS_DIR, "metadata.json")
     with open(meta_path, "w") as f:
@@ -83,6 +94,7 @@ def save_artifacts(pipeline, feature_names, class_names, metrics):
     logger.info(f"Metadata saved → {meta_path}")
 
     return model_path, meta_path
+
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
@@ -93,15 +105,18 @@ def main():
 
     pipeline = build_pipeline()
     pipeline = train(X_train, y_train, pipeline)
-    metrics  = evaluate(pipeline, X_test, y_test, class_names)
+    metrics = evaluate(pipeline, X_test, y_test, class_names)
 
-    model_path, meta_path = save_artifacts(pipeline, feature_names, class_names, metrics)
+    model_path, meta_path = save_artifacts(
+        pipeline, feature_names, class_names, metrics
+    )
 
     logger.info("=" * 50)
     logger.info("✅ Training complete!")
     logger.info(f"   Model    → {model_path}")
     logger.info(f"   Metadata → {meta_path}")
     logger.info(f"   Test Accuracy: {metrics['accuracy']:.4f}")
+
 
 if __name__ == "__main__":
     main()

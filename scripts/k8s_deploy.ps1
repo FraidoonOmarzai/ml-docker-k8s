@@ -12,9 +12,9 @@ param(
     [switch]$DryRun
 )
 
-$NAMESPACE  = "ml-system"
+$NAMESPACE  = "dock8s-namespace"
 $DEPLOYMENT = "dock8s-api"
-$IMAGE      = "dock8s:latest"
+$IMAGE      = "fraidoonjan/dock8s"
 $K8S_DIR    = ".\k8s"
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
@@ -24,9 +24,9 @@ function Warn    { param($msg) Write-Host "[WARN] $msg" -ForegroundColor Yellow 
 function Err     { param($msg) Write-Host "[ERR]  $msg" -ForegroundColor Red; exit 1 }
 function Header  { param($msg)
     Write-Host ""
-    Write-Host ("━" * 55) -ForegroundColor Magenta
+    Write-Host ("-" * 55) -ForegroundColor Magenta
     Write-Host "  $msg"   -ForegroundColor White
-    Write-Host ("━" * 55) -ForegroundColor Magenta
+    Write-Host ("-" * 55) -ForegroundColor Magenta
 }
 
 $ErrorActionPreference = "Stop"
@@ -82,11 +82,7 @@ Header "Step 2: Apply Kubernetes Manifests"
 
 $manifests = @(
     "namespace.yaml",
-    "configmap.yaml",
-    "deployment.yaml",
-    "service.yaml",
-    "hpa.yaml",
-    "ingress.yaml"
+    "deployment.yaml"
 )
 
 foreach ($manifest in $manifests) {

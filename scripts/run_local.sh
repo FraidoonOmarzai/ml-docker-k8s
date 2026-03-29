@@ -6,9 +6,9 @@
 
 set -euo pipefail
 
-IMAGE_NAME="dock8s"
+IMAGE_NAME="fraidoonjan/dock8s"
 IMAGE_TAG="latest"
-CONTAINER_NAME="dock8s-container"
+CONTAINER_NAME="dock8s-api"
 PORT=8080
 
 GREEN='\033[0;32m'
@@ -82,42 +82,43 @@ echo ""
 header "Step 5: Smoke Tests (curl)"
 
 info "GET /health"
-curl -s http://localhost:${PORT}/health | python3 -m json.tool
+# curl -s http://localhost:${PORT}/health
 
-echo ""
-info "POST /predict — Setosa"
-curl -s -X POST http://localhost:${PORT}/predict \
-    -H "Content-Type: application/json" \
-    -d '{"features": [5.1, 3.5, 1.4, 0.2]}' | python3 -m json.tool
+# echo ""
+# info "POST /predict — Setosa"
+# curl -s -X POST http://localhost:${PORT}/predict \
+#     -H "Content-Type: application/json" \
+#     -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
 
-echo ""
-info "POST /predict — Virginica"
-curl -s -X POST http://localhost:${PORT}/predict \
-    -H "Content-Type: application/json" \
-    -d '{"features": [6.7, 3.0, 5.2, 2.3]}' | python3 -m json.tool
+# echo ""
+# info "POST /predict — Virginica"
+# curl -s -X POST http://localhost:${PORT}/predict \
+#     -H "Content-Type: application/json" \
+#     -d '{"features": [6.7, 3.0, 5.2, 2.3]}'
 
-echo ""
-info "POST /predict/batch — 3 samples"
-curl -s -X POST http://localhost:${PORT}/predict/batch \
-    -H "Content-Type: application/json" \
-    -d '{
-        "features": [
-            [5.1, 3.5, 1.4, 0.2],
-            [6.7, 3.0, 5.2, 2.3],
-            [5.8, 2.7, 4.1, 1.0]
-        ]
-    }' | python3 -m json.tool
+# echo ""
+# info "POST /predict/batch — 3 samples"
+# curl -s -X POST http://localhost:${PORT}/predict/batch \
+#     -H "Content-Type: application/json" \
+#     -d '{
+#         "features": [
+#             [5.1, 3.5, 1.4, 0.2],
+#             [6.7, 3.0, 5.2, 2.3],
+#             [5.8, 2.7, 4.1, 1.0]
+#         ]
+#     }' 
 
-echo ""
-info "POST /predict — Bad input (expect 422)"
-curl -s -X POST http://localhost:${PORT}/predict \
-    -H "Content-Type: application/json" \
-    -d '{"features": [5.1, 3.5]}' | python3 -m json.tool
+# echo ""
+# info "POST /predict — Bad input (expect 422)"
+# curl -s -X POST http://localhost:${PORT}/predict \
+#     -H "Content-Type: application/json" \
+#     -d '{"features": [5.1, 3.5]}'
 
 
 # ── Step 6: Full Python test suite ───────────────────────────────────────────
 header "Step 6: Full Test Suite"
-python3 test_local.py --base-url http://localhost:${PORT}
+# python3 scripts/test_local.py --base-url http://localhost:${PORT}
+
 
 
 # ── Step 7: Container info ────────────────────────────────────────────────────

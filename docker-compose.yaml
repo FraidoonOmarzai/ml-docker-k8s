@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: fraidoonjan/dock8s:latest
+    image: fraidoonjan/dock8s:latest # I push the iamges to dockerhub, you can use the same or build locally
     container_name: dock8s
     ports:
       - "8080:8080"
