@@ -1,0 +1,25 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# service.yaml
+# Exposes the dock8s API to external traffic
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dock8s-api-service
+  namespace: dock8s-namespace
+  labels:
+    app: dock8s-api
+
+spec:
+  type: LoadBalancer
+  # type: NodePort
+
+  selector:
+    app: dock8s-api
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# configmap.yaml
+# Stores non-secret configuration. Injected into pods as env vars.
+# Rule: secrets (passwords, API keys) go in Secrets, NOT here.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dock8s-api-config
+  namespace: dock8s-namespace
+  labels:
+    app: dock8s-api
+
+data:
+  # Application settings
+  APP_NAME: "dock8s-api"
+  APP_ENV: "production"
+  APP_PORT: "8080"
+
+  # Health endpoints
+  HEALTH_PATH: "/health"
+  READINESS_PATH: "/ready"
+
+  # Resource-related hints (optional, informational)
+  CPU_REQUEST: "250m"
+  MEMORY_REQUEST: "256Mi"
+
+  # Example ML-related configs (customize as needed)
+  MODEL_NAME: "default-model"
+  MODEL_VERSION: "v1"

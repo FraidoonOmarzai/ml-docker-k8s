@@ -1,0 +1,27 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ingress.yaml
+# Exposes dock8s API via HTTP/HTTPS using an Ingress controller
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dock8s-api-ingress
+  namespace: dock8s-namespace
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+
+spec:
+  ingressClassName: nginx
+
+  rules:
+    - host: dock8s.local   # change this to your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dock8s-api-service
+                port:
+                  number: 80

@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# deployment.yaml
+# Defines how our ML API pods are created, updated, and kept healthy.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,10 +28,15 @@ spec:
       containers:
         - name: dock8s-api
           image: fraidoonjan/dock8s
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent # Always
 
           ports:
             - containerPort: 8080
+
+          # Inject ConfigMap values as environment variables
+          envFrom:
+            - configMapRef:
+                name: dock8s-api-config
 
           livenessProbe:
             httpGet:
@@ -48,18 +59,3 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: dock8s-api-service
-  namespace: dock8s-namespace
-spec:
-  type: LoadBalancer
-  # type: NodePort
-  selector:
-    app: dock8s-api
-  ports:
-  - port: 80
-    targetPort: 8080
