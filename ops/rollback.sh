@@ -10,8 +10,8 @@
 
 set -euo pipefail
 
-NAMESPACE="ml-system"
-DEPLOYMENT="iris-ml-api"
+NAMESPACE="dock8s-namespace"
+DEPLOYMENT="dock8s-api"
 TO_REVISION=""
 FORCE=false
 
@@ -98,6 +98,6 @@ kubectl rollout history deployment/$DEPLOYMENT -n $NAMESPACE
 
 echo ""
 success "🔁 Rollback finished. Verify the API is healthy:"
-echo "   kubectl port-forward svc/iris-ml-api 8080:80 -n $NAMESPACE"
+echo "   kubectl port-forward svc/dock8s-api-service 8080:80 -n $NAMESPACE"
 echo "   curl http://localhost:8080/health"
 echo "   python ops/verify_deployment.py"

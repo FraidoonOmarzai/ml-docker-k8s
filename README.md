@@ -495,34 +495,54 @@ kubectl top pods -n dock8s-namespace
 #  Phase 5 Complete — Full Operational Playbook
 Here's everything that was built and what each piece does:
 
-verify_deployment.py — 6-category health check that runs after every deploy. Checks kubectl cluster state (ready replicas, HPA, services), then hits every API endpoint, runs all 3 class predictions, benchmarks latency (avg/p95), and validates error handling. Exits non-zero if anything fails — CI/CD friendly.
+`verify_deployment.py` — 6-category health check that runs after every deploy. Checks kubectl cluster state (ready replicas, HPA, services), then hits every API endpoint, runs all 3 class predictions, benchmarks latency (avg/p95), and validates error handling. Exits non-zero if anything fails — CI/CD friendly.
 
-load_test.py — Pure-stdlib concurrent load tester. Spins up N worker threads each firing requests at a controlled RPS, then prints a full report: actual RPS, error rate, min/avg/p50/p95/p99/max latency, and a grade. The key use here is to watch the HPA autoscaler respond in real time — run this while watching kubectl get hpa -n ml-system -w in another terminal.
+`load_test.py` — Pure-stdlib concurrent load tester. Spins up N worker threads each firing requests at a controlled RPS, then prints a full report: actual RPS, error rate, min/avg/p50/p95/p99/max latency, and a grade. The key use here is to watch the HPA autoscaler respond in real time — run this while watching kubectl get hpa -n ml-system -w in another terminal.
 
-rollback.sh / rollback.ps1 — Safe rollback that shows you the current state, prints rollout history, asks for confirmation, executes the undo, waits for the new rollout, then verifies pod health automatically.
+`rollback.sh` / `rollback.ps1` — Safe rollback that shows you the current state, prints rollout history, asks for confirmation, executes the undo, waits for the new rollout, then verifies pod health automatically.
 
-ops_cheatsheet.md — 10 sections covering every operational scenario from first deploy through to teardown, with a quick reference card at the bottom.
+`ops_cheatsheet.md` — 10 sections covering every operational scenario from first deploy through to teardown, with a quick reference card at the bottom.
 
 The full end-to-end flow in one go:
-bash# 1. Start cluster
+
+### 1. Start cluster
+```bash
 minikube start --cpus=4 --memory=4g
-minikube addons enable ingress metrics-server
+```
 
-# 2. Deploy everything
-./k8s_deploy.sh
+### 2. Deploy everything
+```bash
+# ./k8s_deploy.sh
+.\scripts\k8s_deploy.ps1
+```
 
-# 3. Open tunnel (separate terminal)
-kubectl port-forward svc/iris-ml-api 8080:80 -n ml-system
+### 3. Open tunnel (separate terminal)
+```bash
+kubectl port-forward svc/dock8s-api-service 8080:80 -n dock8s-namespace
+```
 
-# 4. Verify
+### 4. Verify
+```bash
 python ops/verify_deployment.py
+```
 
-# 5. Load test + watch HPA scale
+### 5. Load test + watch HPA scale
+```bash
 python ops/load_test.py --rps 80 --duration 90 --workers 20
-# (other terminal) kubectl get hpa -n ml-system -w
+# (other terminal) kubectl get hpa -n dock8s-namespace -w
+```
 
-# 6. Simulate a bad deploy + rollback
-kubectl set image deployment/iris-ml-api iris-ml-api=iris-ml-api:broken -n ml-system
+### 6. Simulate a bad deploy + rollback
+```bash
+kubectl set image deployment/dock8s-api dock8s-api=dock8s-api:broken -n dock8s-namespace
 ./ops/rollback.sh
+```
 
-Say "continue" for Phase 6 — Monitoring & Observability: Prometheus metrics endpoint, structured logging, and a Grafana dashboard config for the ML API.
+`Note:` We will use new github branch for phase 5 and push it to github rep
+```bash
+git checkout -b phase5
+git branch
+git add .
+git commit -m "phase five done successfully!"
+git push -u origin phase5
+```
