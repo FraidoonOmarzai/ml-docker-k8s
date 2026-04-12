@@ -10,9 +10,9 @@
 
 set -euo pipefail
 
-NAMESPACE="ml-system"
+NAMESPACE="dock8s-namespace"
 DEPLOYMENT="dock8s-api"
-IMAGE="dock8s:latest"
+IMAGE="faidoonjan/dock8s:latest"
 K8S_DIR="./k8s"
 SKIP_BUILD=false
 DRY_RUN=false

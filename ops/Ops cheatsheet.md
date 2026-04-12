@@ -1,4 +1,5 @@
 # Ops Cheatsheet — ML API on Kubernetes
+
 > Every command you'll need, organised by scenario.
 
 ---
@@ -8,14 +9,6 @@
 ```bash
 # Start minikube (local cluster)
 minikube start --cpus=4 --memory=4g
-minikube addons enable ingress
-minikube addons enable metrics-server   # required for HPA
-
-# Point your shell to minikube's Docker daemon (Linux/Mac)
-eval $(minikube docker-env)
-
-# Windows PowerShell:
-# & minikube -p minikube docker-env | Invoke-Expression
 ```
 
 ---
@@ -31,7 +24,7 @@ chmod +x k8s_deploy.sh && ./k8s_deploy.sh
 
 # Dry-run first to validate manifests
 ./k8s_deploy.sh --dry-run
-.\k8s_deploy.ps1 -DryRun
+.\k8s_deploy.ps1 ...
 
 # Apply a single manifest
 kubectl apply -f k8s/deployment.yaml
@@ -43,22 +36,10 @@ kubectl apply -f k8s/deployment.yaml
 
 ```bash
 # Option A — Port-forward (easiest, no DNS needed)
-kubectl port-forward svc/iris-ml-api 8080:80 -n ml-system
+kubectl port-forward svc/dock8s-api-service 8080:80 -n dock8s-namespace
 # Then: curl http://localhost:8080/health
 
-# Option B — minikube service URL (opens browser)
-minikube service iris-ml-api-external -n ml-system --url
-
-# Option C — NodePort direct
-export MINIKUBE_IP=$(minikube ip)
-curl http://$MINIKUBE_IP:30080/health
-
-# Option D — Ingress (add to /etc/hosts first)
-echo "$(minikube ip) iris-api.local" | sudo tee -a /etc/hosts
-curl http://iris-api.local/health
-
-# Windows hosts file: C:\Windows\System32\drivers\etc\hosts
-# Add: <minikube-ip> iris-api.local
+# ... other options
 ```
 
 ---
@@ -68,21 +49,21 @@ curl http://iris-api.local/health
 ```bash
 # Step 1 — Retrain with new model / code changes, rebuild image
 python model/train.py
-docker build -t iris-ml-api:v2 .
+docker build -t fraidoonjan/dock8s:v2 .
 
 # Step 2 — Load new image into minikube
-minikube image load iris-ml-api:v2
+minikube image load fraidoonjan/dock8s:v2
 
 # Step 3 — Update the deployment image (triggers rolling update)
-kubectl set image deployment/iris-ml-api \
-    iris-ml-api=iris-ml-api:v2 \
-    -n ml-system
+kubectl set image deployment/dock8s-api \
+    dock8s-api=fraidoonjan/dock8s:v2 \
+    -n dock8s-namespace
 
 # Step 4 — Watch the rollout happen live
-kubectl rollout status deployment/iris-ml-api -n ml-system
+kubectl rollout status deployment/dock8s-api -n dock8s-namespace
 
 # Check rollout history
-kubectl rollout history deployment/iris-ml-api -n ml-system
+kubectl rollout history deployment/dock8s-api -n dock8s-namespace
 ```
 
 ---
@@ -105,8 +86,8 @@ kubectl rollout history deployment/iris-ml-api -n ml-system
 .\ops\rollback.ps1 -Force
 
 # Raw kubectl rollback (no confirmation)
-kubectl rollout undo deployment/iris-ml-api -n ml-system
-kubectl rollout undo deployment/iris-ml-api -n ml-system --to-revision=2
+kubectl rollout undo deployment/dock8s-api -n dock8s-namespace
+kubectl rollout undo deployment/dock8s-api -n dock8s-namespace --to-revision=2
 ```
 
 ---
@@ -115,24 +96,24 @@ kubectl rollout undo deployment/iris-ml-api -n ml-system --to-revision=2
 
 ```bash
 # Manual scale — set exact replica count
-kubectl scale deployment iris-ml-api --replicas=5 -n ml-system
+kubectl scale deployment dock8s-api --replicas=5 -n dock8s-namespace
 
 # Watch pods come up
-kubectl get pods -n ml-system -w
+kubectl get pods -n dock8s-namespace -w
 
 # Check HPA status (auto-scaling)
-kubectl get hpa -n ml-system
-kubectl describe hpa iris-ml-api-hpa -n ml-system
+kubectl get hpa -n dock8s-namespace
+kubectl describe hpa dock8s-api-hpa -n dock8s-namespace
 
 # Trigger HPA by running load test (in one terminal)
-kubectl port-forward svc/iris-ml-api 8080:80 -n ml-system
+kubectl port-forward svc/dock8s-api-service 8080:80 -n dock8s-namespace
 
 # Then in another terminal:
 python ops/load_test.py --rps 100 --duration 120 --workers 20
 
 # Watch HPA and pods respond in real-time (third terminal)
-kubectl get hpa -n ml-system -w
-kubectl get pods -n ml-system -w
+kubectl get hpa -n dock8s-namespace -w
+kubectl get pods -n dock8s-namespace-w
 ```
 
 ---
@@ -147,7 +128,7 @@ python ops/verify_deployment.py
 python ops/verify_deployment.py --skip-kubectl
 
 # Against any URL
-python ops/verify_deployment.py --url http://iris-api.local
+python ops/verify_deployment.py --url http://dock8s-api.local
 
 # Quick one-liner health check
 curl -s http://localhost:8080/health | python3 -m json.tool
@@ -165,25 +146,25 @@ curl -s -X POST http://localhost:8080/predict/batch \
 
 ```bash
 # Stream logs from ALL replicas simultaneously
-kubectl logs -l app=iris-ml-api -n ml-system -f --tail=50
+kubectl logs -l app=dock8s-api -n dock8s-namespace -f --tail=50
 
 # Logs from one specific pod
-kubectl logs <pod-name> -n ml-system -f
+kubectl logs <pod-name> -n dock8s-namespace -f
 
 # Previous container's logs (if pod restarted)
-kubectl logs <pod-name> -n ml-system --previous
+kubectl logs <pod-name> -n dock8s-namespace --previous
 
 # Describe pod (events, resource usage, probe results)
-kubectl describe pod -l app=iris-ml-api -n ml-system
+kubectl describe pod -l app=dock8s-api -n dock8s-namespace
 
 # Describe deployment (rollout events, conditions)
-kubectl describe deployment iris-ml-api -n ml-system
+kubectl describe deployment dock8s-api -n dock8s-namespace
 
 # Shell into a running pod
-kubectl exec -it <pod-name> -n ml-system -- /bin/sh
+kubectl exec -it <pod-name> -n dock8s-namespace -- /bin/sh
 
 # Check resource usage (requires metrics-server)
-kubectl top pods -n ml-system
+kubectl top pods -n dock8s-namespace
 kubectl top nodes
 ```
 
@@ -193,16 +174,16 @@ kubectl top nodes
 
 ```bash
 # Edit ConfigMap live
-kubectl edit configmap iris-api-config -n ml-system
+kubectl edit configmap dock8s-api-config -n dock8s-namespace
 
 # Or apply updated file
 kubectl apply -f k8s/configmap.yaml
 
 # Force pod restart to pick up ConfigMap changes
-kubectl rollout restart deployment/iris-ml-api -n ml-system
+kubectl rollout restart deployment/dock8s-api -n dock8s-namespace
 
 # Watch restart progress
-kubectl rollout status deployment/iris-ml-api -n ml-system
+kubectl rollout status deployment/dock8s-api -n dock8s-namespace
 ```
 
 ---
@@ -211,11 +192,11 @@ kubectl rollout status deployment/iris-ml-api -n ml-system
 
 ```bash
 # Pod stuck in Pending?
-kubectl describe pod <pod-name> -n ml-system
+kubectl describe pod <pod-name> -n dock8s-namespace
 # → look for: Insufficient cpu/memory, image pull errors, unschedulable
 
 # Pod in CrashLoopBackOff?
-kubectl logs <pod-name> -n ml-system --previous
+kubectl logs <pod-name> -n dock8s-namespace --previous
 # → model artifacts missing? wrong ARTIFACTS_DIR? OOM?
 
 # ImagePullBackOff?
@@ -223,16 +204,16 @@ kubectl logs <pod-name> -n ml-system --previous
 minikube image ls | grep iris      # verify image exists
 
 # HPA not scaling?
-kubectl describe hpa iris-ml-api-hpa -n ml-system
+kubectl describe hpa dock8s-api-hpa -n dock8s-namespace
 # → metrics-server not running? requests not set in deployment?
 minikube addons enable metrics-server
 
 # Service not routing?
-kubectl get endpoints iris-ml-api -n ml-system
+kubectl get endpoints dock8s-api -n dock8s-namespace
 # → should show pod IPs; if empty, selector labels may not match
 
 # Port-forward failing?
-kubectl get pods -n ml-system    # is there at least one Running pod?
+kubectl get pods -n dock8s-namespace   # is there at least one Running pod?
 ```
 
 ---
@@ -242,10 +223,10 @@ kubectl get pods -n ml-system    # is there at least one Running pod?
 ```bash
 # Delete all resources in the namespace (keeps namespace)
 kubectl delete deployment,svc,hpa,ingress,configmap \
-    -l app=iris-ml-api -n ml-system
+    -l app=dock8s-api -n dock8s-namespace
 
 # Delete the entire namespace (removes everything)
-kubectl delete namespace ml-system
+kubectl delete namespace dock8s-namespace
 
 # Stop minikube
 minikube stop
@@ -258,19 +239,19 @@ minikube delete
 
 ## Quick Reference Card
 
-| Goal | Command |
-|------|---------|
-| Deploy | `./k8s_deploy.sh` |
-| Port-forward | `kubectl port-forward svc/iris-ml-api 8080:80 -n ml-system` |
-| Verify | `python ops/verify_deployment.py` |
-| Load test | `python ops/load_test.py --rps 50 --duration 60` |
-| Watch pods | `kubectl get pods -n ml-system -w` |
-| Watch HPA | `kubectl get hpa -n ml-system -w` |
-| Logs | `kubectl logs -l app=iris-ml-api -n ml-system -f` |
-| Scale to 4 | `kubectl scale deployment iris-ml-api --replicas=4 -n ml-system` |
-| Rolling update | `kubectl set image deployment/iris-ml-api iris-ml-api=iris-ml-api:v2 -n ml-system` |
-| Rollback | `./ops/rollback.sh` |
-| Restart pods | `kubectl rollout restart deployment/iris-ml-api -n ml-system` |
-| Shell into pod | `kubectl exec -it <pod> -n ml-system -- /bin/sh` |
-| Resource usage | `kubectl top pods -n ml-system` |
-| Delete all | `kubectl delete namespace ml-system` |
+| Goal           | Command                                                                                |
+| -------------- | -------------------------------------------------------------------------------------- |
+| Deploy         | `./k8s_deploy.sh`                                                                      |
+| Port-forward   | `kubectl port-forward svc/dock8s-api 8080:80 -n dock8s-namespace`                      |
+| Verify         | `python ops/verify_deployment.py`                                                      |
+| Load test      | `python ops/load_test.py --rps 50 --duration 60`                                       |
+| Watch pods     | `kubectl get pods -n dock8s-namespace -w`                                              |
+| Watch HPA      | `kubectl get hpa -n dock8s-namespace -w`                                               |
+| Logs           | `kubectl logs -l app=dock8s-api -n dock8s-namespace -f`                                |
+| Scale to 4     | `kubectl scale deployment dock8s-api --replicas=4 -n dock8s-namespace`                 |
+| Rolling update | `kubectl set image deployment/dock8s-api dock8s-api=dock8s-api:v2 -n dock8s-namespace` |
+| Rollback       | `./ops/rollback.sh`                                                                    |
+| Restart pods   | `kubectl rollout restart deployment/dock8s-api -n dock8s-namespace`                    |
+| Shell into pod | `kubectl exec -it <pod> -n dock8s-namespace -- /bin/sh`                                |
+| Resource usage | `kubectl top pods -n dock8s-namespace`                                                 |
+| Delete all     | `kubectl delete namespace dock8s-namespace`                                            |
