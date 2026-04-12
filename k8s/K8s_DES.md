@@ -125,18 +125,18 @@ containers:
 cd k8s
 
 ## Apply everything step by step:
-# aply namespace
+# Step 1 — Apply namespace
 kubectl apply -f namespace.yaml
 # Verify
 kubectl get namespace dock8s-namespace
 
-# Apply the ConfigMap
+# Step 2 — Apply the ConfigMap
 kubectl apply -f configmap.yaml
 # Verify
 kubectl get configmap -n dock8s-namespace
 kubectl describe configmap dock8s-api-config -n dock8s-namespace
 
-# Apply the Deployment
+# Step 3 — Apply the Deployment
 kubectl apply -f deployment.yaml
 ## Watch pods come up in real time
 kubectl get pods -n dock8s-namespace -w
@@ -144,7 +144,7 @@ kubectl get pods -n dock8s-namespace -w
 # Confirm replicas are ready
 kubectl get deployment dock8s-api -n dock8s-namespace
 
-# Apply the Service
+# Step 4 — Apply the Service
 kubectl apply -f service.yaml
 # Verify both services were created
 kubectl get svc -n dock8s-namespace
@@ -153,7 +153,13 @@ NAME                 TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)       
 api-service          LoadBalancer   10.102.17.147   <pending>     80:30309/TCP   40d
 dock8s-api-service   LoadBalancer   10.101.44.63    <pending>     80:32670/TCP   31d
 
-# Apply the Ingress
+# Step 5 — Apply the HPA
+kubectl apply -f hpa.yaml
+# Verify
+kubectl get hpa -n dock8s-namespace
+
+
+# Step 6 — Apply the Ingress
 kubectl apply -f ingress.yaml
 # Verify
 kubectl get ingress -n dock8s-namespace

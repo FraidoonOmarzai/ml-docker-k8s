@@ -335,6 +335,7 @@ ml-k8s-project/
     ├── configmap.yaml          ← app config & env vars
     ├── deployment.yaml         ← pods, replicas, probes, resources
     ├── service.yaml            ← internal + external networking
+    ├── hpa.yaml                ← autoscaler (scale on CPU)
     └── ingress.yaml            ← optional HTTP routing
 ```
 
@@ -442,7 +443,23 @@ dock8s-api-service   LoadBalancer   10.101.44.63    <pending>     80:32670/TCP  
 
 The EXTERNAL-IP will stay <pending> until you run minikube tunnel (see access step below).
 
-### Step 6 — Apply the Ingress
+
+### Step 6 — Apply the HPA
+```bash
+kubectl apply -f hpa.yaml
+
+# Verify
+kubectl get hpa -n dock8s-namespace
+```
+`Expected:`
+```
+NAME               REFERENCE              TARGETS   MINPODS   MAXPODS   REPLICAS
+dock8s-api-hpa    Deployment/iris-ml-api  5%/70%    2         10        2
+```
+- If you see <unknown>/70% under TARGETS, wait 60 seconds — metrics-server needs time to collect its first data points.
+
+
+### Step 7 — Apply the Ingress
 
 ```bash
 kubectl apply -f k8s/ingress.yaml
@@ -451,7 +468,7 @@ kubectl apply -f k8s/ingress.yaml
 kubectl get ingress -n dock8s-namespace
 ```
 
-### Step 7 — Access the API
+### Step 8 — Access the API
 
 - Port-forward (easiest, works always):
 
@@ -462,7 +479,7 @@ kubectl port-forward svc/dock8s-api-service 8080:80 -n dock8s-namespace
 - In a second terminal:
   curl http://localhost:8080/health
 
-### Step 8 — Verify everything is healthy
+### Step 9 — Verify everything is healthy
 
 ```bash
 # All resources at a glance
@@ -474,3 +491,38 @@ kubectl rollout status deployment/dock8s-api -n dock8s-namespace
 # Pod resource usage (requires metrics-server)
 kubectl top pods -n dock8s-namespace
 ```
+
+#  Phase 5 Complete — Full Operational Playbook
+Here's everything that was built and what each piece does:
+
+verify_deployment.py — 6-category health check that runs after every deploy. Checks kubectl cluster state (ready replicas, HPA, services), then hits every API endpoint, runs all 3 class predictions, benchmarks latency (avg/p95), and validates error handling. Exits non-zero if anything fails — CI/CD friendly.
+
+load_test.py — Pure-stdlib concurrent load tester. Spins up N worker threads each firing requests at a controlled RPS, then prints a full report: actual RPS, error rate, min/avg/p50/p95/p99/max latency, and a grade. The key use here is to watch the HPA autoscaler respond in real time — run this while watching kubectl get hpa -n ml-system -w in another terminal.
+
+rollback.sh / rollback.ps1 — Safe rollback that shows you the current state, prints rollout history, asks for confirmation, executes the undo, waits for the new rollout, then verifies pod health automatically.
+
+ops_cheatsheet.md — 10 sections covering every operational scenario from first deploy through to teardown, with a quick reference card at the bottom.
+
+The full end-to-end flow in one go:
+bash# 1. Start cluster
+minikube start --cpus=4 --memory=4g
+minikube addons enable ingress metrics-server
+
+# 2. Deploy everything
+./k8s_deploy.sh
+
+# 3. Open tunnel (separate terminal)
+kubectl port-forward svc/iris-ml-api 8080:80 -n ml-system
+
+# 4. Verify
+python ops/verify_deployment.py
+
+# 5. Load test + watch HPA scale
+python ops/load_test.py --rps 80 --duration 90 --workers 20
+# (other terminal) kubectl get hpa -n ml-system -w
+
+# 6. Simulate a bad deploy + rollback
+kubectl set image deployment/iris-ml-api iris-ml-api=iris-ml-api:broken -n ml-system
+./ops/rollback.sh
+
+Say "continue" for Phase 6 — Monitoring & Observability: Prometheus metrics endpoint, structured logging, and a Grafana dashboard config for the ML API.

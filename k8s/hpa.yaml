@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# hpa.yaml — Horizontal Pod Autoscaler
+#
+# Automatically scales pod count based on CPU utilization.
+# Works in tandem with the resource requests in deployment.yaml —
+# the HPA calculates usage as a % of the request value.
+#
+# Requires metrics-server to be installed:
+#   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dock8s-api-hpa
+  namespace: dock8s-namespace
+  labels:
+    app: dock8s-api
+    app.kubernetes.io/name: dock8s-api
+    app.kubernetes.io/component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dock8s-api
+
+  # ── Replica bounds ─────────────────────────────────────────────────────────
+  minReplicas: 1    # never go below 1 (HA guarantee)
+  maxReplicas: 5   # never exceed 5 (cost cap)
+
+  # ── Scaling metrics ────────────────────────────────────────────────────────
+  metrics:
+    # Scale up when average CPU across all pods exceeds 70% of their request
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Also scale on memory (optional — remove if not needed)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+  # ── Scaling behaviour ──────────────────────────────────────────────────────
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60    # wait 60s of sustained load before scaling up
+      policies:
+        - type: Pods
+          value: 2                      # add at most 2 pods per scale event
+          periodSeconds: 60
+        - type: Percent
+          value: 50                     # or 50% of current count, whichever is larger
+          periodSeconds: 60
+      selectPolicy: Max
+
+    scaleDown:
+      stabilizationWindowSeconds: 300   # wait 5 min before scaling down (avoid flapping)
+      policies:
+        - type: Pods
+          value: 1                      # remove at most 1 pod per scale event
+          periodSeconds: 120
+      selectPolicy: Min
