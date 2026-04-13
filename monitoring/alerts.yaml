@@ -1,0 +1,179 @@
+# =============================================================================
+# monitoring/alerts.yaml
+# Prometheus alerting rules — fires to Alertmanager (Slack, PagerDuty, email)
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: Dock8s-api-alerts
+  namespace: dock8s-namespace
+  labels:
+    app: Dock8s-api
+    release: kube-prometheus
+spec:
+  groups:
+
+    # ── Availability alerts ───────────────────────────────────────────────────
+    - name: Dock8s_api_availability
+      rules:
+
+        - alert: Dock8sAPIDown
+          expr: |
+            absent(Dock8s_api_model_loaded == 1)
+          for: 1m
+          labels:
+            severity: critical
+            team: ml-platform
+          annotations:
+            summary: "Dock8s API is down"
+            description: >
+              The Dock8s-api model_loaded metric is missing or 0.
+              The service may be crashing or failing to start.
+            runbook: "https://wiki.internal/runbooks/dock8s-api-down"
+
+        - alert: Dock8sAPIHighErrorRate
+          expr: |
+            sum(rate(Dock8s_api_requests_total{http_status=~"5.."}[5m]))
+            /
+            sum(rate(Dock8s_api_requests_total[5m]))
+            > 0.05
+          for: 3m
+          labels:
+            severity: critical
+            team: ml-platform
+          annotations:
+            summary: "Dock8s API error rate > 5%"
+            description: >
+              {{ $value | humanizePercentage }} of requests are returning 5xx errors
+              over the last 5 minutes.
+            runbook: "https://wiki.internal/runbooks/dock8s-api-errors"
+
+        - alert: Dock8sAPIHighValidationErrors
+          expr: |
+            rate(Dock8s_api_validation_errors_total[5m]) > 10
+          for: 5m
+          labels:
+            severity: warning
+            team: ml-platform
+          annotations:
+            summary: "High rate of input validation errors"
+            description: >
+              More than 10 validation errors/sec over 5 minutes.
+              Clients may be sending malformed requests.
+
+    # ── Latency alerts ────────────────────────────────────────────────────────
+    - name: Dock8s_api_latency
+      rules:
+
+        - alert: Dock8sAPIHighP95Latency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(Dock8s_api_request_duration_seconds_bucket[5m])) by (le)
+            ) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            team: ml-platform
+          annotations:
+            summary: "p95 API latency > 500ms"
+            description: >
+              95th percentile request latency is {{ $value | humanizeDuration }}.
+              Consider scaling up replicas or optimising the model.
+
+        - alert: Dock8sAPIHighP99Latency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(Dock8s_api_request_duration_seconds_bucket[5m])) by (le)
+            ) > 2.0
+          for: 5m
+          labels:
+            severity: critical
+            team: ml-platform
+          annotations:
+            summary: "p99 API latency > 2s"
+            description: >
+              99th percentile latency is {{ $value | humanizeDuration }}.
+              Users are experiencing severe slowdowns.
+
+        - alert: Dock8sAPISlowInference
+          expr: |
+            (
+              sum(rate(Dock8s_api_prediction_duration_seconds_sum[5m]))
+              /
+              sum(rate(Dock8s_api_prediction_duration_seconds_count[5m]))
+            ) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            team: ml-platform
+          annotations:
+            summary: "Model inference latency > 100ms"
+            description: >
+              Average model inference time is {{ $value | humanizeDuration }}.
+              This excludes HTTP overhead — the model itself may be degraded.
+
+    # ── Traffic alerts ────────────────────────────────────────────────────────
+    - name: Dock8s_api_traffic
+      rules:
+
+        - alert: Dock8sAPINoTraffic
+          expr: |
+            sum(rate(Dock8s_api_requests_total{endpoint="/predict"}[10m])) == 0
+          for: 10m
+          labels:
+            severity: warning
+            team: ml-platform
+          annotations:
+            summary: "No prediction traffic for 10 minutes"
+            description: >
+              The /predict endpoint has received no requests in 10 minutes.
+              The load balancer or upstream service may be misconfigured.
+
+        - alert: Dock8sAPIHighRequestRate
+          expr: |
+            sum(rate(Dock8s_api_requests_total[1m])) > 500
+          for: 2m
+          labels:
+            severity: warning
+            team: ml-platform
+          annotations:
+            summary: "Very high request rate (> 500 rps)"
+            description: >
+              Request rate is {{ $value | humanize }} req/s.
+              HPA may need higher maxReplicas or rate limiting should be enforced.
+
+    # ── Kubernetes pod alerts ─────────────────────────────────────────────────
+    - name: Dock8s_api_pods
+      rules:
+
+        - alert: Dock8sAPIPodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total{
+              namespace="ml-system",
+              pod=~"Dock8s-api.*"
+            }[15m]) * 60 * 15 > 3
+          for: 5m
+          labels:
+            severity: critical
+            team: ml-platform
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash-looping"
+            description: >
+              Pod {{ $labels.pod }} has restarted more than 3 times in 15 minutes.
+              Check logs: kubectl logs {{ $labels.pod }} -n ml-system --previous
+
+        - alert: Dock8sAPILowReadyReplicas
+          expr: |
+            kube_deployment_status_replicas_ready{
+              namespace="ml-system",
+              deployment="Dock8s-api"
+            } < 1
+          for: 2m
+          labels:
+            severity: critical
+            team: ml-platform
+          annotations:
+            summary: "Dock8s API has 0 ready replicas"
+            description: >
+              The deployment has no ready pods. Service is completely down.
+              kubectl get pods -n ml-system

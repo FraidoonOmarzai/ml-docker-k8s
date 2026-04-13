@@ -1,0 +1,108 @@
+# =============================================================================
+# monitoring/prometheus-config.yaml
+#
+# Two resources:
+#   1. ServiceMonitor  — tells Prometheus Operator to scrape our API
+#   2. PrometheusRule  — recording rules for derived metrics (RPS, error rate)
+#
+# Prerequisites:
+#   Install kube-prometheus-stack (includes Prometheus + Grafana):
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo update
+#   helm install kube-prometheus prometheus-community/kube-prometheus-stack \
+#        --namespace monitoring --create-namespace
+#
+# For minikube (no Helm):
+#   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/bundle.yaml
+# =============================================================================
+
+---
+# ── ServiceMonitor ────────────────────────────────────────────────────────────
+# Prometheus Operator watches for ServiceMonitor resources and automatically
+# adds our API as a scrape target. No static config editing needed.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: iris-ml-api-monitor
+  namespace: ml-system
+  labels:
+    app: iris-ml-api
+    # This label must match the Prometheus Operator's serviceMonitorSelector
+    # For kube-prometheus-stack default install, this is usually:
+    release: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: iris-ml-api         # selects our ClusterIP Service
+  endpoints:
+    - port: http               # named port in the Service
+      path: /metrics           # our Prometheus endpoint
+      interval: 15s            # scrape every 15 seconds
+      scrapeTimeout: 10s
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - ml-system
+
+---
+# ── Recording Rules ───────────────────────────────────────────────────────────
+# Pre-compute expensive or frequently-used queries as new time series.
+# Grafana dashboards query these instead of re-computing from raw counters.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: iris-ml-api-rules
+  namespace: ml-system
+  labels:
+    app: iris-ml-api
+    release: kube-prometheus
+spec:
+  groups:
+    - name: iris_api_recording_rules
+      interval: 15s
+      rules:
+
+        # Requests per second (5m rate)
+        - record: iris_api:request_rate5m
+          expr: |
+            sum(rate(iris_api_requests_total[5m])) by (endpoint)
+
+        # Error rate (non-2xx / total)
+        - record: iris_api:error_rate5m
+          expr: |
+            sum(rate(iris_api_requests_total{http_status!~"2.."}[5m])) by (endpoint)
+            /
+            sum(rate(iris_api_requests_total[5m])) by (endpoint)
+
+        # p95 latency
+        - record: iris_api:latency_p95_5m
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(iris_api_request_duration_seconds_bucket[5m])) by (le, endpoint)
+            )
+
+        # p99 latency
+        - record: iris_api:latency_p99_5m
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(iris_api_request_duration_seconds_bucket[5m])) by (le, endpoint)
+            )
+
+        # Prediction throughput by class
+        - record: iris_api:prediction_rate5m
+          expr: |
+            sum(rate(iris_api_predictions_total[5m])) by (predicted_class)
+
+        # Average model confidence per class
+        - record: iris_api:avg_confidence5m
+          expr: |
+            sum(rate(iris_api_prediction_confidence_sum[5m])) by (predicted_class)
+            /
+            sum(rate(iris_api_prediction_confidence_count[5m])) by (predicted_class)
+
+        # Average inference latency (pure model, no HTTP)
+        - record: iris_api:inference_latency_avg5m
+          expr: |
+            sum(rate(iris_api_prediction_duration_seconds_sum[5m])) by (endpoint)
+            /
+            sum(rate(iris_api_prediction_duration_seconds_count[5m])) by (endpoint)

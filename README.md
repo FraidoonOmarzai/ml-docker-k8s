@@ -492,7 +492,7 @@ kubectl rollout status deployment/dock8s-api -n dock8s-namespace
 kubectl top pods -n dock8s-namespace
 ```
 
-#  Phase 5 Complete — Full Operational Playbook
+#  Phase 5 — Full Operational Playbook
 Here's everything that was built and what each piece does:
 
 `verify_deployment.py` — 6-category health check that runs after every deploy. Checks kubectl cluster state (ready replicas, HPA, services), then hits every API endpoint, runs all 3 class predictions, benchmarks latency (avg/p95), and validates error handling. Exits non-zero if anything fails — CI/CD friendly.
@@ -545,4 +545,64 @@ git branch
 git add .
 git commit -m "phase five done successfully!"
 git push -u origin phase5
+```
+
+# Phase 6 - Full Observability Stack
+
+```
+ml-k8s-project/
+└── monitoring/
+    ├── prometheus-config.yaml     ← scrape config + K8s ServiceMonitor
+    ├── grafana-dashboard.json     ← importable Grafana dashboard
+    └── alerts.yaml                ← Prometheus alerting rules
+app/
+    ├── metrics.py                 ← NEW: Prometheus counters/histograms
+    └── main.py                    ← UPDATED: metrics middleware + /metrics
+```
+
+
+Here's everything that was built and how it fits together:
+- `app/metrics.py` — Defines every Prometheus metric the API exposes, cleanly separated from business logic. There are 3 layers of metrics: HTTP-level (request count, latency, in-flight), inference-level (per-class prediction counts, model confidence, pure inference time), and error-level (prediction errors, validation failures). The `init_model_metrics()` function stamps static model info (type, accuracy, version) into a Prometheus `Info` gauge at startup.
+- `app/main.py` (updated) — The middleware now records all HTTP metrics automatically for every request. Each inference route additionally records model-specific metrics. A `JSONFormatter` replaces plain-text logging so every log line is a valid JSON object — ready to be shipped to ELK, Loki, or Datadog without parsing.
+- `prometheus-config.yaml` — Two CRDs: a `ServiceMonitor` that tells Prometheus Operator to scrape `/metrics` on our service every 15s (zero static config), and a `PrometheusRule` with 7 pre-computed recording rules that turn expensive PromQL into cheap time series (RPS, error rate, p95/p99, per-class prediction rate, average confidence, inference latency).
+- `alerts.yaml` — 9 production alerts across 4 groups: availability (API down, >5% error rate), latency (p95 > 500ms, p99 > 2s, inference > 100ms), traffic (no traffic for 10min, >500 rps), and Kubernetes (crash-looping, 0 ready replicas). Every alert has a severity label, team label, and runbook URL placeholder.
+- `grafana-dashboard.json` — 11-panel importable dashboard covering: model health stat, RPS stat, error rate stat, p95 latency stat, ready replicas stat, RPS time series by endpoint, latency percentile time series, predictions by class time series, confidence distribution time series, status code donut chart, and inference latency time series.
+
+Spin up the full monitoring stack:
+```bash
+# Install Prometheus + Grafana via Helm + wire up ServiceMonitor
+chmod +x monitoring/setup_monitoring.sh
+./monitoring/setup_monitoring.sh
+
+# Open Grafana
+kubectl port-forward svc/kube-prometheus-grafana 3000:80 -n monitoring
+# → http://localhost:3000  (admin / prom-operator)
+# → Dashboards → Import → Upload grafana-dashboard.json
+
+# See raw metrics from the API directly
+kubectl port-forward svc/iris-ml-api 8080:80 -n ml-system
+curl http://localhost:8080/metrics
+```
+
+`Note:` We will use new github branch for phase 6 and push it to github rep
+```bash
+git checkout -b phase6
+git branch
+git add .
+git commit -m "phase six done successfully!"
+git push -u origin phase6
+```
+
+`Note:` Phase 6 is not run!
+
+## 🎉 All 6 Phases Complete!
+Here's the full project at a glance:
+```bash
+## Phase       ## What you built
+#  1            Scikit-learn pipeline, train + evaluate scripts, saved artifacts
+#  2            FastAPI inference server, Pydantic schemas, singleton predictor, multi-stage Dockerfile
+#  3            Local Docker build/run/test workflow, full Python test suite, Docker Compose
+#  4            K8s Namespace, ConfigMap, Deployment (rolling update, 3 probes, anti-affinity), Service, HPA, Ingress
+#  5            Live deploy script, cluster verification, load tester (triggers HPA), safe rollback, ops cheatsheet
+#  6            Prometheus metrics (HTTP + inference + errors), JSON structured logging, ServiceMonitor, 9 alerts, Grafana dashboard
 ```

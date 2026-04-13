@@ -1,0 +1,483 @@
+{
+    "__inputs": [
+        {
+            "name": "DS_PROMETHEUS",
+            "label": "Prometheus",
+            "description": "Prometheus data source",
+            "type": "datasource",
+            "pluginId": "prometheus",
+            "pluginName": "Prometheus"
+        }
+    ],
+    "title": "Docker + K8s API — Production Dashboard",
+    "uid": "docker-k8s-api-v1",
+    "description": "End-to-end observability for the Docker + K8s inference API",
+    "tags": [
+        "ml",
+        "iris",
+        "inference",
+        "kubernetes"
+    ],
+    "timezone": "browser",
+    "refresh": "15s",
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "schemaVersion": 38,
+    "panels": [
+        {
+            "id": 1,
+            "title": "🟢 Model Status",
+            "type": "stat",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "1": {
+                                    "text": "HEALTHY",
+                                    "color": "green"
+                                }
+                            }
+                        },
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DOWN",
+                                    "color": "red"
+                                }
+                            }
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": 0
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "iris_api_model_loaded",
+                    "legendFormat": "Model Loaded"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Request Rate (req/s)",
+            "type": "stat",
+            "gridPos": {
+                "x": 4,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 100
+                            },
+                            {
+                                "color": "red",
+                                "value": 500
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "sum(rate(iris_api_requests_total[5m]))",
+                    "legendFormat": "RPS"
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Error Rate",
+            "type": "stat",
+            "gridPos": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 0.01
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.05
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "sum(rate(iris_api_requests_total{http_status=~'5..'}[5m])) / sum(rate(iris_api_requests_total[5m]))",
+                    "legendFormat": "Error Rate"
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "title": "p95 Latency",
+            "type": "stat",
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 200
+                            },
+                            {
+                                "color": "red",
+                                "value": 500
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "histogram_quantile(0.95, sum(rate(iris_api_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+                    "legendFormat": "p95 (ms)"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Ready Replicas",
+            "type": "stat",
+            "gridPos": {
+                "x": 16,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "options": {
+                "colorMode": "background"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": 0
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 1
+                            },
+                            {
+                                "color": "green",
+                                "value": 2
+                            }
+                        ]
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "kube_deployment_status_replicas_ready{namespace='ml-system', deployment='iris-ml-api'}",
+                    "legendFormat": "Ready Pods"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Requests Per Second — by Endpoint",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "sum(rate(iris_api_requests_total[5m])) by (endpoint)",
+                    "legendFormat": "{{endpoint}}"
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Request Latency Percentiles",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 12,
+                "y": 4,
+                "w": 12,
+                "h": 8
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 5
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "histogram_quantile(0.50, sum(rate(iris_api_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+                    "legendFormat": "p50"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "histogram_quantile(0.95, sum(rate(iris_api_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+                    "legendFormat": "p95"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "histogram_quantile(0.99, sum(rate(iris_api_request_duration_seconds_bucket[5m])) by (le)) * 1000",
+                    "legendFormat": "p99"
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Predictions by Class (rate/5m)",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 0,
+                "y": 12,
+                "w": 12,
+                "h": 8
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 15
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "sum(rate(iris_api_predictions_total[5m])) by (predicted_class)",
+                    "legendFormat": "{{predicted_class}}"
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "title": "Model Confidence Distribution",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 12,
+                "y": 12,
+                "w": 12,
+                "h": 8
+            },
+            "description": "Average model confidence per predicted class. Low values may indicate distribution shift.",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "min": 0,
+                    "max": 1,
+                    "custom": {
+                        "lineWidth": 2
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "sum(rate(iris_api_prediction_confidence_sum[5m])) by (predicted_class) / sum(rate(iris_api_prediction_confidence_count[5m])) by (predicted_class)",
+                    "legendFormat": "{{predicted_class}} confidence"
+                }
+            ]
+        },
+        {
+            "id": 10,
+            "title": "HTTP Status Code Breakdown",
+            "type": "piechart",
+            "gridPos": {
+                "x": 0,
+                "y": 20,
+                "w": 8,
+                "h": 8
+            },
+            "options": {
+                "pieType": "donut",
+                "displayLabels": [
+                    "name",
+                    "percent"
+                ]
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "sum(increase(iris_api_requests_total[1h])) by (http_status)",
+                    "legendFormat": "HTTP {{http_status}}"
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "title": "Model Inference Latency (pure — no HTTP)",
+            "type": "timeseries",
+            "gridPos": {
+                "x": 8,
+                "y": 20,
+                "w": 16,
+                "h": 8
+            },
+            "description": "Time spent inside the model .predict() call only. Compare against total request latency to see HTTP overhead.",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms",
+                    "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "histogram_quantile(0.50, sum(rate(iris_api_prediction_duration_seconds_bucket[5m])) by (le, endpoint)) * 1000",
+                    "legendFormat": "{{endpoint}} p50"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${DS_PROMETHEUS}"
+                    },
+                    "expr": "histogram_quantile(0.95, sum(rate(iris_api_prediction_duration_seconds_bucket[5m])) by (le, endpoint)) * 1000",
+                    "legendFormat": "{{endpoint}} p95"
+                }
+            ]
+        }
+    ]
+}
